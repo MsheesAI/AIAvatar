@@ -12,6 +12,7 @@ from livekit.plugins import groq, noise_cancellation , bey
 from prompts import AGENT_INSTRUCTIONS
 import os
 from tools import send_email
+from livekit.agents import BackgroundAudioPlayer, AudioConfig, BuiltinAudioClip
 
 
 load_dotenv(".env.local")
@@ -61,7 +62,13 @@ async def my_agent(ctx: agents.JobContext):
             ),
         ),
     )
-
+    background_audio=BackgroundAudioPlayer(
+        thinking_sound=[
+            AudioConfig(BuiltinAudioClip.KEYBOARD_TYPING,volume=1),
+            AudioConfig(BuiltinAudioClip.KEYBOARD_TYPING2,volume=1),
+        ],
+    )
+    await background_audio.start(room=ctx.room,agent_session=session)
     await session.generate_reply(
         instructions="Greet the user and offer your assistance."
     )
