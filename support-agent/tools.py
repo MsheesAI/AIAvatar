@@ -9,10 +9,51 @@ from typing import Optional
 from pathlib import Path
 import asyncio
 
+@function_tool()
+async def unblock_user(context: RunContext, username: str) -> str:
+    """
+    Unblock users so they can log in again.
+    """
+    try:
+        THIS_DIR = Path(__file__).parent
+        block_file = THIS_DIR / "generic_corporate_app" / "public" / "blockusers.txt"
+        
+        if not block_file.exists():
+            logging.error(f"Block file not found at {block_file}")
+            return "Unblock failed: blockusers.txt file not found"
+            
+        block_file.write_text("")
+        
+        logging.info("Successfully cleared blockusers.txt")
+        
+        room = get_job_context().room
+        participant_identity = next(iter(room.remote_participants))
+        
+        try:
+            await asyncio.sleep(3)
+            response = await room.lodcal_participant.perform_rpc(
+                destination_identity=participant_identity,
+                method="client.showNotification",
+                payload=json.dumps({
+                    "type": "unblock_user",
+                    "username": username
+                }),
+                response_timeout=30.0
+            )
+            logging.info(f"unblock_user response: {response}")
+            return f"User {username} has been unblocked successfully and the response is: {response}"
+        except Exception as rpc_error:
+            logging.error(f"RPC error: {rpc_error}")
+            
+            return f"User {username} has been unblocked, but notification failed: {str(rpc_error)}"
+ 
+    except Exception as e:
+        logging.error(f"Error clearing block file: {e}")
+        raise ToolError("Unable to use tool unblock_user at this time.")
 
 @function_tool()    
 async def send_email(
-    context: RunContext,  # type: ignore
+    context: RunContext, 
     to_email: str,
     subject: str,
     message: str,
@@ -32,26 +73,32 @@ async def send_email(
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
         
+        
         gmail_user = os.getenv("GMAIL_USER")
         gmail_password = os.getenv("GMAIL_APP_PASSWORD") 
         
         if not gmail_user or not gmail_password:
             logging.error("Gmail credentials not found in environment variables")
             return "Email sending failed: Gmail credentials not configured."
+        
+        
         msg = MIMEMultipart()
         msg['From'] = gmail_user
         msg['To'] = to_email
         msg['Subject'] = subject
         
+        # Add CC if provided
         recipients = [to_email]
         if cc_email:
             msg['Cc'] = cc_email
             recipients.append(cc_email)
         
+    
         msg.attach(MIMEText(message, 'plain'))
         
+
         server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()  # Enable TLS encryption
+        server.starttls()  
         server.login(gmail_user, gmail_password)
         
         text = msg.as_string()
@@ -64,6 +111,7 @@ async def send_email(
         participant_identity = next(iter(room.remote_participants))
 
         try:
+            
             await asyncio.sleep(3)
             response = await room.local_participant.perform_rpc(
                 destination_identity=participant_identity,
@@ -72,12 +120,13 @@ async def send_email(
                     "type": "send_email",
                     "email_address": to_email
                 }),
-                response_timeout=30.0 
+                response_timeout=30.0  # Increased timeout to 30 seconds
             )
             logging.info(f"unblock_user response: {response}")
             return f"The email sent and the notification has been shown as well with response: {response}"
         except Exception as rpc_error:
             logging.error(f"RPC error: {rpc_error}")
+            # Still return success if file was cleared but RPC failed
             return f"The notification to client was unsuccessful: {str(rpc_error)}"
         
     except smtplib.SMTPAuthenticationError:

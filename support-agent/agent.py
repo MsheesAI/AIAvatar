@@ -11,7 +11,7 @@ from livekit.agents import (
 from livekit.plugins import groq, noise_cancellation , bey
 from prompts import AGENT_INSTRUCTIONS
 import os
-from tools import send_email
+from tools import send_email , unblock_user
 from livekit.agents import BackgroundAudioPlayer, AudioConfig, BuiltinAudioClip
 
 
@@ -22,7 +22,7 @@ class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions=AGENT_INSTRUCTIONS,
-            tools=[send_email]
+            tools=[send_email, unblock_user]
         )
 
 
