@@ -8,7 +8,10 @@ from livekit.agents import (
     inference,
     room_io,
 )
-from livekit.plugins import groq, noise_cancellation
+from livekit.plugins import groq, noise_cancellation , bey
+from prompts import AGENT_INSTRUCTIONS
+import os
+
 
 load_dotenv(".env.local")
 
@@ -16,10 +19,7 @@ load_dotenv(".env.local")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""You are a helpful voice AI assistant.
-            You eagerly assist users with their questions using your knowledge.
-            Keep responses concise, natural, friendly, and a little humorous.
-            Avoid complex formatting and emojis."""
+            instructions=AGENT_INSTRUCTIONS
         )
 
 
@@ -45,7 +45,10 @@ async def my_agent(ctx: agents.JobContext):
             language="en",
         ),
     )
-
+    avatar = bey.AvatarSession(
+        avatar_id=os.environ.get("BEY_AVATAR_ID"),
+    )
+    await avatar.start(session,room=ctx.room)
     await session.start(
         room=ctx.room,
         agent=Assistant(),
